@@ -4,6 +4,10 @@ from telebot.handler_backends import State, StatesGroup
 
 
 class UserInfoState(StatesGroup):
+    min_price = State()
+    max_price = State()
+    min_distance = State()
+    max_distance = State()
     country = State()
     city = State()
     hotels_amount = State()

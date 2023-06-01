@@ -5,8 +5,66 @@ from states.info_from_user import UserInfoState
 from project.handlers.custom_handlers.api_connector import list_of_hotels
 
 
+@bot.message_handler(commands=['bestdeal'])
+def best_deal(message: Message) -> None:
+    bot.set_state(message.from_user.id, UserInfoState.min_price, message.chat.id)
+    bot.send_message(message.chat.id, 'Введите минимальную цену отеля', parse_mode=None)
+
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        data['sort'] = 'DISTANCE'
+        data['sort_type'] = 'bestdeal'
+
+
+@bot.message_handler(state=UserInfoState.min_price)
+def min_price(message: Message) -> None:
+    if message.text.isdigit():
+        bot.set_state(message.from_user.id, UserInfoState.max_price, message.chat.id)
+        bot.send_message(message.chat.id, 'Введите Максимальную цену', parse_mode=None)
+
+        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+            data['min_price'] = int(message.text)
+    else:
+        bot.send_message(message.chat.id, 'Ошибка ввода. Введите заново', parse_mode=None)
+
+
+@bot.message_handler(state=UserInfoState.max_price)
+def max_price(message: Message) -> None:
+    if message.text.isdigit():
+        bot.set_state(message.from_user.id, UserInfoState.min_distance, message.chat.id)
+        bot.send_message(message.chat.id, 'Введите минимальное расстояние от центра города(от 0 км)', parse_mode=None)
+
+        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+            data['max_price'] = int(message.text)
+    else:
+        bot.send_message(message.chat.id, 'Ошибка ввода. Введите заново', parse_mode=None)
+
+
+@bot.message_handler(state=UserInfoState.min_distance)
+def min_distance(message: Message) -> None:
+    if message.text.isdigit():
+        bot.set_state(message.from_user.id, UserInfoState.max_distance, message.chat.id)
+        bot.send_message(message.chat.id, 'Введите максимальное расстояние от центра города(км)', parse_mode=None)
+
+        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+            data['min_distance'] = int(message.text)
+    else:
+        bot.send_message(message.chat.id, 'Ошибка ввода. Введите заново', parse_mode=None)
+
+
+@bot.message_handler(state=UserInfoState.max_distance)
+def max_distance(message: Message) -> None:
+    if message.text.isdigit():
+        bot.set_state(message.from_user.id, UserInfoState.country, message.chat.id)
+        bot.send_message(message.chat.id, 'Введите название страны', parse_mode=None)
+
+        with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+            data['max_distance'] = int(message.text)
+    else:
+        bot.send_message(message.chat.id, 'Ошибка ввода. Введите заново', parse_mode=None)
+
+
 @bot.message_handler(commands=['highprice'])
-def low_price(message: Message) -> None:
+def high_price(message: Message) -> None:
     bot.set_state(message.from_user.id, UserInfoState.country, message.chat.id)
     bot.send_message(message.chat.id, 'Введите название страны', parse_mode=None)
 
@@ -386,7 +444,6 @@ def check_out_cal(cal):
 
 
 def last_step(user_id: int, chat_id: int) -> None:
-
     bot.send_message(chat_id, '{data}')
     with bot.retrieve_data(user_id, chat_id) as data:
         data['user_id'] = f'{user_id}'
