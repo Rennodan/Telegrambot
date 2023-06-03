@@ -70,7 +70,7 @@ def high_price(message: Message) -> None:
 
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         data['sort'] = 'PRICE_LOW_TO_HIGH'
-        data['sort_type'] = 'high'
+        data['sort_type'] = 'high_price'
 
 
 @bot.message_handler(commands=['lowprice'])
@@ -80,7 +80,7 @@ def low_price(message: Message) -> None:
 
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         data['sort'] = 'PRICE_LOW_TO_HIGH'
-        data['sort_type'] = 'low'
+        data['sort_type'] = 'low_price'
 
 
 @bot.message_handler(state=UserInfoState.country)
@@ -92,6 +92,7 @@ def country_from_chat(message: Message) -> None:
         with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             data['country'] = message.text
             data['rooms'] = []
+            data['username'] = message.from_user.username
     else:
         bot.send_message(
             message.chat.id,

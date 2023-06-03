@@ -1,6 +1,7 @@
 from loader import bot
 import requests
 from config_data.config import RAPID_API_KEY
+from database.database_tg import save_user
 
 
 def get_region_id(q: dict, headers):  # 1 шаг получаем id региона он же gaia id по запросу Страна + Город
@@ -39,9 +40,16 @@ def post_hotel_detail(property_id: int, query: dict, hotel_data: dict, headers: 
             for i in range(query['photo_amount']):
                 photo_of_h.append(result['data']['propertyInfo']['propertyGallery']['images'][i]['image']['url'])
             hotel_data['photo_list'].append(photo_of_h)
+    else:
+        bot.send_message(query['chat_id'], 'Произошла ошибка при запросе')
+        print('ошибка', response.status_code)
+        bot.delete_state(query['user_id'], query['chat_id'])
+        return None
 
 
-def send_hotels_to_user(query, data_about_hotels: dict):
+def send_hotels_to_user(query: dict, data_about_hotels: dict) -> None:
+    print(query)
+    print(data_about_hotels)
     for hotel in range(len(data_about_hotels['names_list'])):
         output_message = f'№{hotel + 1}\n' \
                          f'Название: {data_about_hotels["names_list"][hotel]}\n' \
@@ -50,12 +58,14 @@ def send_hotels_to_user(query, data_about_hotels: dict):
                          f'Цена за ночь: {data_about_hotels["price_list"][hotel]}\n' \
                          f'Адрес: {data_about_hotels["address_list"][hotel]}'
         bot.send_message(query['chat_id'], output_message)
-        for photo in range(len(data_about_hotels['photo_list'][hotel])):
-            bot.send_photo(query['chat_id'], f'{data_about_hotels["photo_list"][hotel][photo]}')
+        if query['photo']:
+            for photo in range(len(data_about_hotels['photo_list'][hotel])):
+                bot.send_photo(query['chat_id'], f'{data_about_hotels["photo_list"][hotel][photo]}')
+    save_user(query_from_user=query, data_about_hotels=data_about_hotels)
     bot.delete_state(user_id=query['user_id'], chat_id=query['chat_id'])
 
 
-def list_of_hotels(query: dict):
+def list_of_hotels(query: dict) -> None:
     headers = {
         'X-RapidAPI-Key': f'{RAPID_API_KEY}',
         'X-RapidAPI-Host': 'hotels4.p.rapidapi.com'
@@ -63,8 +73,13 @@ def list_of_hotels(query: dict):
 
     region_id = get_region_id(q=query, headers=headers)
 
-    payload = create_payload(query=query, region_id=region_id)
+    if region_id is None:
+        bot.send_message(query['chat_id'], 'К сожаление для данного региона ничего не найдено')
+        bot.delete_state(query['user_id'], query['chat_id'])
+        return None
+    query['region_id'] = region_id
 
+    payload = create_payload(query=query, region_id=region_id)
 
     url = 'https://hotels4.p.rapidapi.com/properties/v2/list'
     response = requests.post(url, json=payload, headers=headers, timeout=10)
@@ -72,6 +87,7 @@ def list_of_hotels(query: dict):
     if response.status_code == requests.codes.ok:
         result = response.json()
         data_about_hotels = {
+            'property_id_list': [],
             'names_list': [],
             'distance_list': [],
             'price_list': [],
@@ -80,8 +96,8 @@ def list_of_hotels(query: dict):
             'photo_list': []
 
         }
-        if query['sort_type'] == 'high':
-            for hotel in range(-1, -query['resultsSize'], -1):
+        if query['sort_type'] == 'high_price':
+            for hotel in range(-1, -(query['resultsSize']), -1):
                 data_about_hotels['names_list'].append(result['data']['propertySearch']['properties'][hotel]['name'])
 
                 data_about_hotels['distance_list'].append(
@@ -108,15 +124,18 @@ def list_of_hotels(query: dict):
                 )
 
                 property_id = result['data']['propertySearch']['properties'][hotel]['id']
+                data_about_hotels['property_id_list'].append(property_id)
 
                 data_about_hotels['site_url'].append(f'https://www.hotels.com/h{property_id}.Hotel-Information')
 
                 post_hotel_detail(property_id=property_id, query=query, hotel_data=data_about_hotels, headers=headers)
 
             send_hotels_to_user(query=query, data_about_hotels=data_about_hotels)
+
         elif query['sort_type'] == 'bestdeal':
+
             count_of_hotels = query['resultsSize']
-            for hotel in range(payload['resultsSize']):
+            for hotel in range(len(result['data']['propertySearch']['properties'])):
                 if count_of_hotels == 0:
                     break
                 distance = \
@@ -190,23 +209,27 @@ def list_of_hotels(query: dict):
 
                 property_id = result['data']['propertySearch']['properties'][hotel]['id']
 
+                data_about_hotels['property_id_list'].append(property_id)
                 data_about_hotels['site_url'].append(f'https://www.hotels.com/h{property_id}.Hotel-Information')
 
                 post_hotel_detail(property_id=property_id, query=query, hotel_data=data_about_hotels, headers=headers)
 
             send_hotels_to_user(query=query, data_about_hotels=data_about_hotels)
     else:
-        print('ошибка')
+        bot.send_message(query['chat_id'], 'Произошла ошибка при запросе')
+        print('ошибка', response.status_code)
+        bot.delete_state(query['user_id'], query['chat_id'])
+        return None
 
 
 # number_in_list name price optional(photo max=3)
 def create_payload(query: dict, region_id: int) -> dict:
     # PRICE_RELEVANT (Price + our picks)|REVIEW (Guest rating)|DISTANCE (Distance from downtown)|
     # PRICE_LOW_TO_HIGH (Price)|PROPERTY_CLASS (Star rating)|RECOMMENDED (Recommended) Виды сортировок
-    if query['sort_type'] == 'high':
+    if query['sort_type'] == 'high_price':
         hotel_filter = {'availableFilter': 'SHOW_AVAILABLE_ONLY'}
         result_size = 200
-    elif query['sort_type'] == 'low':
+    elif query['sort_type'] == 'low_price':
         hotel_filter = {'availableFilter': 'SHOW_AVAILABLE_ONLY'}
         result_size = query['resultsSize']
     else:

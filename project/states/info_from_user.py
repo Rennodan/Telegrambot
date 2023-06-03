@@ -4,6 +4,7 @@ from telebot.handler_backends import State, StatesGroup
 
 
 class UserInfoState(StatesGroup):
+    history = State()
     min_price = State()
     max_price = State()
     min_distance = State()
