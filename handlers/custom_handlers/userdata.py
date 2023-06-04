@@ -2,7 +2,7 @@ from telebot.types import Message
 from telegram_bot_calendar import DetailedTelegramCalendar, LSTEP
 from loader import bot
 from states.info_from_user import UserInfoState
-from project.handlers.custom_handlers.api_connector import list_of_hotels
+from handlers.custom_handlers.api_connector import list_of_hotels
 
 
 @bot.message_handler(commands=['bestdeal'])
@@ -93,6 +93,7 @@ def country_from_chat(message: Message) -> None:
             data['country'] = message.text
             data['rooms'] = []
             data['username'] = message.from_user.username
+            data['message_date'] = message.date
     else:
         bot.send_message(
             message.chat.id,
@@ -445,7 +446,6 @@ def check_out_cal(cal):
 
 
 def last_step(user_id: int, chat_id: int) -> None:
-    bot.send_message(chat_id, '{data}')
     with bot.retrieve_data(user_id, chat_id) as data:
         data['user_id'] = f'{user_id}'
         data['chat_id'] = f'{chat_id}'
@@ -453,6 +453,5 @@ def last_step(user_id: int, chat_id: int) -> None:
         data['currency'] = 'USD'
         data['eapid'] = 1
         data['locale'] = 'ru_RU'
-        bot.send_message(chat_id, f'{data}')
 
         list_of_hotels(data)

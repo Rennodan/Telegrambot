@@ -1,7 +1,7 @@
 from telebot.types import Message
 from loader import bot
 from states.info_from_user import UserInfoState
-from database.database_tg import get_users_requests
+from database.database_tg import get_users_requests, get_required_hotels
 
 
 @bot.message_handler(commands=['history'])
@@ -14,8 +14,7 @@ def history(message: Message) -> None:
 @bot.message_handler(state=UserInfoState.history)
 def request_hotel(message: Message) -> None:
     if message.text.isdigit() and int(message.text) > 0:
-
-        pass
+        get_required_hotels(request_id=int(message.text), user=message.from_user.id, chat=message.chat.id)
     else:
         bot.send_message(message.chat.id, 'Ошибка ввода. Введите заново', parse_mode=None)
 

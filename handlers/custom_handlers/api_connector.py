@@ -8,7 +8,7 @@ def get_region_id(q: dict, headers):  # 1 шаг получаем id регио�
     url = 'https://hotels4.p.rapidapi.com/locations/v3/search'
 
     querystring = {'q': f'{q["country"]} {q["city"]}', 'locale': f'{q["locale"]}', 'siteid': f'{q["site_id"]}'}
-    response = requests.get(url, headers=headers, params=querystring, timeout=10)
+    response = requests.get(url, headers=headers, params=querystring, timeout=20)
     if response.status_code == requests.codes.ok:
         result = response.json()
         if len(result['sr']) == 0:  # если в городе нет отелей доступных на сайте hotels.com(например Россия)
@@ -28,7 +28,7 @@ def post_hotel_detail(property_id: int, query: dict, hotel_data: dict, headers: 
         'propertyId': property_id
     }
 
-    response = requests.post(url, json=payload, headers=headers, timeout=10)
+    response = requests.post(url, json=payload, headers=headers, timeout=20)
     if response.status_code == requests.codes.ok:
 
         result = response.json()
@@ -48,8 +48,7 @@ def post_hotel_detail(property_id: int, query: dict, hotel_data: dict, headers: 
 
 
 def send_hotels_to_user(query: dict, data_about_hotels: dict) -> None:
-    print(query)
-    print(data_about_hotels)
+    bot.send_message(query['chat_id'], text='Список доступных отелей')
     for hotel in range(len(data_about_hotels['names_list'])):
         output_message = f'№{hotel + 1}\n' \
                          f'Название: {data_about_hotels["names_list"][hotel]}\n' \
@@ -82,7 +81,7 @@ def list_of_hotels(query: dict) -> None:
     payload = create_payload(query=query, region_id=region_id)
 
     url = 'https://hotels4.p.rapidapi.com/properties/v2/list'
-    response = requests.post(url, json=payload, headers=headers, timeout=10)
+    response = requests.post(url, json=payload, headers=headers, timeout=20)
 
     if response.status_code == requests.codes.ok:
         result = response.json()
@@ -181,7 +180,7 @@ def list_of_hotels(query: dict) -> None:
 
             send_hotels_to_user(query=query, data_about_hotels=data_about_hotels)
         else:
-            for hotel in range(query['resultsSize']):
+            for hotel in range(len(result['data']['propertySearch']['properties'])):
                 data_about_hotels['names_list'].append(result['data']['propertySearch']['properties'][hotel]['name'])
 
                 data_about_hotels['distance_list'].append(
