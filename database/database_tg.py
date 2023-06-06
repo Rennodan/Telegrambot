@@ -1,14 +1,21 @@
 from database.models import *
 from loader import bot
 from keyboards.reply.request_keyboard import gen_markup
-# import logging
-
-# logger = logging.getLogger('peewee')
-# logger.addHandler(logging.StreamHandler())
-# logger.setLevel(logging.DEBUG)
 
 
 def save_user(query_from_user: dict, data_about_hotels: dict) -> None:
+    """
+        Функция сохранение запросов к API в базу данных
+
+        Функция создаёт 2 таблицы.
+        1) таблица Запросов
+        2) таблица отелей
+        Связанны таблицы с помощью id запросов
+
+        :param dict query_from_user: Данные от пользователя
+        :param dict data_about_hotels: Данные об отелях
+        :return: None
+    """
     db.create_tables([History, Hotel])
     with db:
         request = History.create(
@@ -21,7 +28,7 @@ def save_user(query_from_user: dict, data_about_hotels: dict) -> None:
             command=query_from_user['sort_type']
         )
         for hotel in range(len(data_about_hotels['names_list'])):
-            created_hotel = Hotel.create(
+            Hotel.create(
                 history_id=request,
                 hotel_name=data_about_hotels['names_list'][hotel],
                 distance=data_about_hotels['distance_list'][hotel],
@@ -32,6 +39,14 @@ def save_user(query_from_user: dict, data_about_hotels: dict) -> None:
 
 
 def get_users_requests(user: int, chat: int) -> None:
+    """
+        Функция обращения к базе данных с целью получения списка запросов
+
+        Функция обращается к базе данных выбирая те запросы в которых совпадает user_id и посылает их пользователю
+        :param int user: id пользователя
+        :param int chat: id чата
+        :return: None
+    """
     db.create_tables([History, Hotel])
     with db:
         data = History.select().where(History.user_id == chat)
@@ -59,6 +74,15 @@ def get_users_requests(user: int, chat: int) -> None:
 
 
 def get_required_hotels(user: int, chat: int, request_id: int) -> None:
+    """
+        Функция обращения к базе данных с целью получения списка отелей связанных с запросом.
+
+        Функция обращается к базе данных, выбирая те отели, в которых совпадает request_id и посылает их в виде списка.
+        :param int request_id: Id запроса, который выбрал пользователь
+        :param int user: id пользователя
+        :param int chat: id чата
+        :return: None
+    """
     data = (Hotel.select(History, Hotel).join(History).where(History.user_id == chat, Hotel.history_id == request_id))
     number_of_hotel = 1
     for hotel in data:

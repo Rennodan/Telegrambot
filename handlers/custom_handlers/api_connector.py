@@ -4,7 +4,16 @@ from config_data.config import RAPID_API_KEY
 from database.database_tg import save_user
 
 
-def get_region_id(q: dict, headers):  # 1 шаг получаем id региона он же gaia id по запросу Страна + Город
+def get_region_id(q: dict, headers: dict) -> None or int:
+    """
+              Функция запроса API locations/v3/search
+
+              Необходима для получения id Региона для последующих запросов
+
+               :param dict headers: Заголовок HTTP для запроса к API
+               :param dict q: Данные от пользователя
+               :return: возвращает или id региона, или None
+           """
     url = 'https://hotels4.p.rapidapi.com/locations/v3/search'
 
     querystring = {'q': f'{q["country"]} {q["city"]}', 'locale': f'{q["locale"]}', 'siteid': f'{q["site_id"]}'}
@@ -17,7 +26,18 @@ def get_region_id(q: dict, headers):  # 1 шаг получаем id регио�
             return result['sr'][0]['gaiaId']
 
 
-def post_hotel_detail(property_id: int, query: dict, hotel_data: dict, headers: dict):
+def post_hotel_detail(property_id: int, query: dict, hotel_data: dict, headers: dict) -> None:
+    """
+           Функция запроса API properties/v2/detail
+
+           Необходима для получения галереи отеля и адреса
+
+            :param dict headers: Заголовок HTTP для запроса к API
+            :param dict hotel_data: словарь для данных об отеле
+            :param dict query: Данные от пользователя
+            :param int property_id: id Отеля на сайте Hotels.com
+            :return: None
+        """
     url = 'https://hotels4.p.rapidapi.com/properties/v2/detail'
 
     payload = {
@@ -48,6 +68,15 @@ def post_hotel_detail(property_id: int, query: dict, hotel_data: dict, headers: 
 
 
 def send_hotels_to_user(query: dict, data_about_hotels: dict) -> None:
+    """
+        Функция ответа пользователю
+
+        Функция отправляет данные отелей пользователю в чат и вызывает функцию сохранения их в базу данных
+        После удаляет состояние пользователя.
+        :param dict data_about_hotels: Данные об отелях
+        :param dict query: Данные от пользователя
+        :return: None
+    """
     bot.send_message(query['chat_id'], text='Список доступных отелей')
     for hotel in range(len(data_about_hotels['names_list'])):
         output_message = f'№{hotel + 1}\n' \
@@ -65,6 +94,19 @@ def send_hotels_to_user(query: dict, data_about_hotels: dict) -> None:
 
 
 def list_of_hotels(query: dict) -> None:
+    """
+        Функция основного запроса к API
+
+        Функция вызывает функцию get_region_id и записывает полученный результат в переменную.
+        Далее передаёт эту переменную и данные собранные с пользователя в функцию create_payload.
+        И в зависимости от созданного payload производит запрос. Переводит полученные данные в json формат.
+        Далее происходит парсинг json, и распределение данных по спискам внутри созданного словаря, и к каждому отелю
+        выполняется дополнительных запрос вызовом функции post_hotel_detail.
+        Вызывается функция send_hotels_to_user
+
+        :param dict query: данные от пользователя
+        :return: None
+    """
     headers = {
         'X-RapidAPI-Key': f'{RAPID_API_KEY}',
         'X-RapidAPI-Host': 'hotels4.p.rapidapi.com'
@@ -223,6 +265,14 @@ def list_of_hotels(query: dict) -> None:
 
 # number_in_list name price optional(photo max=3)
 def create_payload(query: dict, region_id: int) -> dict:
+    """
+            Функция создания payload для API
+
+            Функция собирает данные полученные от пользователя и подставляет их в JSON формат запроса
+            :param int region_id: id региона
+            :param dict query: данные полученные от пользователя
+            :return: dict payload: данные для запроса в API
+        """
     # PRICE_RELEVANT (Price + our picks)|REVIEW (Guest rating)|DISTANCE (Distance from downtown)|
     # PRICE_LOW_TO_HIGH (Price)|PROPERTY_CLASS (Star rating)|RECOMMENDED (Recommended) Виды сортировок
     if query['sort_type'] == 'high_price':

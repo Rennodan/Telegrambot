@@ -9,4 +9,3 @@ if __name__ == "__main__":
     set_default_commands(bot)
     print('Бот запущен')
     bot.infinity_polling()
-
